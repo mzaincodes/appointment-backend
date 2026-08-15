@@ -87,6 +87,25 @@ export function resolveTarget(): DbTarget {
   };
 }
 
+/**
+ * Whether to negotiate TLS.
+ *
+ * Managed providers (Render, Heroku, Supabase, Neon) require it on their
+ * *external* endpoints and usually advertise it as `?sslmode=require` in the
+ * connection string. Honouring both that and an explicit `DATABASE_SSL` means
+ * seeding a hosted database from a laptop works without extra flags.
+ *
+ * `rejectUnauthorized: false` because these providers terminate TLS with a
+ * certificate chain the local trust store does not carry.
+ */
+export function resolveSsl(): { rejectUnauthorized: boolean } | undefined {
+  const env = readEnvFile();
+  const url = process.env.DATABASE_URL || env.DATABASE_URL || '';
+  const explicit = (process.env.DATABASE_SSL || env.DATABASE_SSL || '').toLowerCase() === 'true';
+  const inUrl = /[?&]sslmode=(require|verify-ca|verify-full)/i.test(url);
+  return explicit || inUrl ? { rejectUnauthorized: false } : undefined;
+}
+
 /** Same connection, but pointed at the `postgres` maintenance database. */
 export function maintenanceTarget(target: DbTarget): DbTarget {
   return { ...target, database: 'postgres' };

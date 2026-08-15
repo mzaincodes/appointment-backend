@@ -37,7 +37,12 @@ export const pool = new Pool({
   max: env.DATABASE_POOL_MAX,
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 10_000,
-  ssl: env.DATABASE_SSL ? { rejectUnauthorized: false } : undefined,
+  // Honour both the explicit flag and the `?sslmode=require` that managed
+  // providers put in their connection strings, so a pasted URL works as-is.
+  ssl:
+    env.DATABASE_SSL || /[?&]sslmode=(require|verify-ca|verify-full)/i.test(env.DATABASE_URL)
+      ? { rejectUnauthorized: false }
+      : undefined,
 });
 
 pool.on('error', (error) => {
@@ -199,6 +204,15 @@ export function describeConnectionError(error: unknown): { reason: string; hint:
     hint = 'Password authentication failed. Check the user and password in DATABASE_URL.';
   } else if (codes.has('3D000')) {
     hint = 'That database does not exist yet. Create it with:   npm run db:setup';
+  } else if (/ssl|tls/i.test(reason)) {
+    // PostgreSQL reports "SSL/TLS required" as 28000
+    // (invalid_authorization_specification) — the same code it uses for an
+    // unknown role. Reading the code alone therefore produces the wrong advice,
+    // so the message decides which of the two this is.
+    hint =
+      'The server requires TLS. Set DATABASE_SSL=true in backend/.env\n' +
+      '  (managed providers such as Render, Heroku, Supabase and Neon require it\n' +
+      '  on their external connection URLs).';
   } else if (codes.has('28000')) {
     hint = 'That PostgreSQL role does not exist. Check the username in DATABASE_URL.';
   }

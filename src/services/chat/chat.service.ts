@@ -32,18 +32,33 @@ export const chatService = {
     if (sessionId) {
       const existing = await chatRepository.findSessionById(sessionId);
       if (existing) {
-        // A session owned by someone else must never be reachable by guessing
-        // its id.
-        if (existing.userId && user && existing.userId !== user.id) {
-          throw new ForbiddenError('That conversation belongs to another account.');
+        const belongsToSomeoneElse =
+          existing.userId !== null && (!user || existing.userId !== user.id);
+
+        // A conversation owned by another account is never handed over. This is
+        // not an error the visitor can act on, though — a stale id in their
+        // browser is not their fault — so fall through to their own session
+        // rather than failing the chat outright.
+        if (!belongsToSomeoneElse) {
+          // A guest who chats and then signs in keeps the conversation.
+          if (!existing.userId && user) {
+            await chatRepository.attachUser(existing.id, user.id);
+            return { ...existing, userId: user.id };
+          }
+          return existing;
         }
-        if (!existing.userId && user) {
-          await chatRepository.attachUser(existing.id, user.id);
-          return { ...existing, userId: user.id };
-        }
-        return existing;
       }
     }
+
+    // No usable id. A signed-in patient resumes their most recent conversation,
+    // so the assistant still has the context of what they asked last time —
+    // including from another device, since the transcript lives in PostgreSQL
+    // rather than in the browser.
+    if (user) {
+      const [mostRecent] = await chatRepository.listSessionsForUser(user.id, 1);
+      if (mostRecent) return mostRecent;
+    }
+
     return chatRepository.createSession(user?.id ?? null);
   },
 

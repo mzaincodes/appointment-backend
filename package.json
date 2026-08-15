@@ -14,7 +14,10 @@
     "db:status": "tsx scripts/db-local.ts status",
     "db:setup": "tsx scripts/setup-db.ts",
     "db:reset": "tsx scripts/setup-db.ts --reset",
-    "test:e2e": "tsx scripts/e2e-test.ts"
+    "test:e2e": "tsx scripts/e2e-test.ts",
+    "db:migrate": "tsx scripts/setup-db.ts --schema-only",
+    "db:seed": "tsx scripts/setup-db.ts --seed-only",
+    "migrate": "node scripts/migrate.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

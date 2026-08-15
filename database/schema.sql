@@ -23,33 +23,34 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
 -- -----------------------------------------------------------------------------
---  Clean slate (development convenience)
+--  This script is NON-DESTRUCTIVE and safe to re-run
 -- -----------------------------------------------------------------------------
-DROP TABLE IF EXISTS ai_interactions   CASCADE;
-DROP TABLE IF EXISTS chat_messages     CASCADE;
-DROP TABLE IF EXISTS chat_sessions     CASCADE;
-DROP TABLE IF EXISTS appointments      CASCADE;
-DROP TABLE IF EXISTS clinic_knowledge  CASCADE;
-DROP TABLE IF EXISTS services          CASCADE;
-DROP TABLE IF EXISTS clinic_hours      CASCADE;
-DROP TABLE IF EXISTS users             CASCADE;
-
-DROP TYPE IF EXISTS user_role          CASCADE;
-DROP TYPE IF EXISTS appointment_status CASCADE;
-DROP TYPE IF EXISTS chat_role          CASCADE;
-DROP TYPE IF EXISTS timerange          CASCADE;
-
-DROP FUNCTION IF EXISTS set_updated_at()               CASCADE;
-DROP FUNCTION IF EXISTS time_subtype_diff(TIME, TIME)  CASCADE;
+--  Every statement below creates only what is missing, so applying it to a
+--  populated database leaves existing rows untouched.  That matters because it
+--  runs on every deploy: an earlier version of this file began by dropping the
+--  tables, which quietly erased real data each time it was applied.
+--
+--  To deliberately start over, drop the database instead:
+--      npm run db:reset
+-- -----------------------------------------------------------------------------
 
 -- -----------------------------------------------------------------------------
 --  Enumerated types
 -- -----------------------------------------------------------------------------
 --  Enums (rather than free-text + CHECK) give us a single source of truth that
 --  is enforced by the database and reflected in the TypeScript types.
-CREATE TYPE user_role          AS ENUM ('USER', 'ADMIN');
-CREATE TYPE appointment_status AS ENUM ('BOOKED', 'COMPLETED', 'CANCELLED');
-CREATE TYPE chat_role          AS ENUM ('user', 'assistant', 'system', 'tool');
+DO $$ BEGIN
+    CREATE TYPE user_role AS ENUM ('USER', 'ADMIN');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+    CREATE TYPE appointment_status AS ENUM ('BOOKED', 'COMPLETED', 'CANCELLED');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+    CREATE TYPE chat_role AS ENUM ('user', 'assistant', 'system', 'tool');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- -----------------------------------------------------------------------------
 --  timerange — a range type over TIME
@@ -60,21 +61,24 @@ CREATE TYPE chat_role          AS ENUM ('user', 'assistant', 'system', 'tool');
 --
 --  subtype_diff is optional but tells GiST how "far apart" two times are, which
 --  lets the index build balanced pages instead of degenerating toward a scan.
-CREATE FUNCTION time_subtype_diff(x TIME, y TIME) RETURNS FLOAT8 AS $$
+CREATE OR REPLACE FUNCTION time_subtype_diff(x TIME, y TIME) RETURNS FLOAT8 AS $$
     SELECT EXTRACT(EPOCH FROM (x - y))::FLOAT8;
 $$ LANGUAGE sql IMMUTABLE STRICT;
 
-CREATE TYPE timerange AS RANGE (
-    subtype      = TIME,
-    subtype_diff = time_subtype_diff
-);
+DO $$ BEGIN
+    CREATE TYPE timerange AS RANGE (
+        subtype      = TIME,
+        subtype_diff = time_subtype_diff
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- -----------------------------------------------------------------------------
 --  updated_at trigger helper
 -- -----------------------------------------------------------------------------
 --  Keeping this in the database (instead of the application) guarantees the
 --  column is correct no matter which code path performs the UPDATE.
-CREATE FUNCTION set_updated_at() RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION set_updated_at() RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = now();
     RETURN NEW;
@@ -84,7 +88,7 @@ $$ LANGUAGE plpgsql;
 -- =============================================================================
 --  users
 -- =============================================================================
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name          TEXT        NOT NULL,
     email         TEXT        NOT NULL,
@@ -105,12 +109,12 @@ CREATE TABLE users (
 --  Emails are compared case-insensitively.  A unique index on lower(email) is
 --  what actually prevents duplicate signups; the application also lowercases on
 --  write so lookups can use this index directly.
-CREATE UNIQUE INDEX users_email_lower_key ON users (lower(email));
+CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower_key ON users (lower(email));
 
 --  Admin listings are ordered newest-first.
-CREATE INDEX users_created_at_idx ON users (created_at DESC);
+CREATE INDEX IF NOT EXISTS users_created_at_idx ON users (created_at DESC);
 
-CREATE TRIGGER users_set_updated_at
+CREATE OR REPLACE TRIGGER users_set_updated_at
     BEFORE UPDATE ON users
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
@@ -121,7 +125,7 @@ CREATE TRIGGER users_set_updated_at
 --  that availability is *data driven*.  Changing the clinic's schedule is an
 --  UPDATE, not a redeploy, and the AI knowledge base reads from the same rows
 --  the availability engine uses -- there is exactly one source of truth.
-CREATE TABLE clinic_hours (
+CREATE TABLE IF NOT EXISTS clinic_hours (
     day_of_week SMALLINT PRIMARY KEY,          -- 0 = Sunday … 6 = Saturday (matches JS getDay())
     is_open     BOOLEAN  NOT NULL DEFAULT TRUE,
     opens_at    TIME,
@@ -141,7 +145,7 @@ CREATE TABLE clinic_hours (
 -- =============================================================================
 --  Treatments offered.  Surfaced on the landing page, in the booking form and
 --  in the chatbot knowledge base.
-CREATE TABLE services (
+CREATE TABLE IF NOT EXISTS services (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     slug          TEXT        NOT NULL UNIQUE,
     name          TEXT        NOT NULL,
@@ -159,9 +163,9 @@ CREATE TABLE services (
 );
 
 --  The public service list is always "active, in display order".
-CREATE INDEX services_active_order_idx ON services (is_active, display_order);
+CREATE INDEX IF NOT EXISTS services_active_order_idx ON services (is_active, display_order);
 
-CREATE TRIGGER services_set_updated_at
+CREATE OR REPLACE TRIGGER services_set_updated_at
     BEFORE UPDATE ON services
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
@@ -173,7 +177,7 @@ CREATE TRIGGER services_set_updated_at
 --  patient_email / patient_phone) instead of being read through the join.  That
 --  keeps the appointment self-contained and means editing a profile later never
 --  silently rewrites the contact details of a past booking.
-CREATE TABLE appointments (
+CREATE TABLE IF NOT EXISTS appointments (
     id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id          UUID REFERENCES users (id) ON DELETE SET NULL,
 
@@ -245,13 +249,16 @@ CREATE TABLE appointments (
 --    WHERE status  -> a CANCELLED appointment releases its slot; BOOKED and
 --                     COMPLETED both continue to occupy it.  This is precisely
 --                     the rule the availability API implements, expressed once.
-ALTER TABLE appointments
-    ADD CONSTRAINT appointments_no_overlap
-    EXCLUDE USING gist (
-        appointment_date WITH =,
-        timerange(start_time, end_time, '[)') WITH &&
-    )
-    WHERE (status <> 'CANCELLED');
+DO $$ BEGIN
+    ALTER TABLE appointments
+        ADD CONSTRAINT appointments_no_overlap
+        EXCLUDE USING gist (
+            appointment_date WITH =,
+            timerange(start_time, end_time, '[)') WITH &&
+        )
+        WHERE (status <> 'CANCELLED');
+EXCEPTION WHEN duplicate_table OR duplicate_object THEN NULL;
+END $$;
 
 -- -----------------------------------------------------------------------------
 --  Indexes
@@ -263,41 +270,41 @@ ALTER TABLE appointments
 --        WHERE appointment_date = $1 AND status <> 'CANCELLED'
 --     The composite (date, start_time) lets Postgres satisfy the lookup and
 --     return rows pre-sorted by slot, so no extra sort node is needed.
-CREATE INDEX appointments_date_start_time_idx
+CREATE INDEX IF NOT EXISTS appointments_date_start_time_idx
     ON appointments (appointment_date, start_time);
 
 --  2. Admin status filters and the dashboard statistic cards
 --        WHERE status = 'BOOKED' ORDER BY appointment_date
-CREATE INDEX appointments_status_date_idx
+CREATE INDEX IF NOT EXISTS appointments_status_date_idx
     ON appointments (status, appointment_date DESC);
 
 --  3. "My appointments" for a signed-in patient.
 --     Partial: guest bookings have user_id IS NULL and are never queried this
 --     way, so they are kept out of the index entirely.
-CREATE INDEX appointments_user_id_date_idx
+CREATE INDEX IF NOT EXISTS appointments_user_id_date_idx
     ON appointments (user_id, appointment_date DESC)
     WHERE user_id IS NOT NULL;
 
 --  4. Guest lookup — a signed-out patient finds their booking by email, and
 --     newly registered users can claim past guest bookings by address.
-CREATE INDEX appointments_patient_email_idx
+CREATE INDEX IF NOT EXISTS appointments_patient_email_idx
     ON appointments (lower(patient_email));
 
 --  5. Admin free-text search across patient name / email / reason.  A trigram
 --     index keeps ILIKE '%term%' off a sequential scan as the table grows.
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
-CREATE INDEX appointments_search_trgm_idx
+CREATE INDEX IF NOT EXISTS appointments_search_trgm_idx
     ON appointments USING gin (
         (patient_name || ' ' || patient_email || ' ' || reason) gin_trgm_ops
     );
 
 --  6. "Today's appointments" card and the upcoming-appointments list.  Partial
 --     on the only status those views care about, which keeps the index small.
-CREATE INDEX appointments_upcoming_idx
+CREATE INDEX IF NOT EXISTS appointments_upcoming_idx
     ON appointments (appointment_date, start_time)
     WHERE status = 'BOOKED';
 
-CREATE TRIGGER appointments_set_updated_at
+CREATE OR REPLACE TRIGGER appointments_set_updated_at
     BEFORE UPDATE ON appointments
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
@@ -311,7 +318,7 @@ CREATE TRIGGER appointments_set_updated_at
 --
 --  Retrieval strategy: PostgreSQL full-text search (tsvector/ts_rank) blended
 --  with trigram similarity for typo tolerance.  See README "Lightweight RAG".
-CREATE TABLE clinic_knowledge (
+CREATE TABLE IF NOT EXISTS clinic_knowledge (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     category      TEXT        NOT NULL,
     title         TEXT        NOT NULL,
@@ -337,19 +344,19 @@ CREATE TABLE clinic_knowledge (
 );
 
 --  GIN over the generated tsvector — the primary retrieval path.
-CREATE INDEX clinic_knowledge_search_idx
+CREATE INDEX IF NOT EXISTS clinic_knowledge_search_idx
     ON clinic_knowledge USING gin (search_vector);
 
 --  Trigram fallback so near-miss spellings ("apointment", "flouride") still
 --  retrieve the right document.
-CREATE INDEX clinic_knowledge_trgm_idx
+CREATE INDEX IF NOT EXISTS clinic_knowledge_trgm_idx
     ON clinic_knowledge USING gin ((title || ' ' || keywords) gin_trgm_ops);
 
-CREATE INDEX clinic_knowledge_category_idx
+CREATE INDEX IF NOT EXISTS clinic_knowledge_category_idx
     ON clinic_knowledge (category)
     WHERE is_active;
 
-CREATE TRIGGER clinic_knowledge_set_updated_at
+CREATE OR REPLACE TRIGGER clinic_knowledge_set_updated_at
     BEFORE UPDATE ON clinic_knowledge
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
@@ -365,7 +372,7 @@ CREATE TRIGGER clinic_knowledge_set_updated_at
 --  conversation survives a page reload or a socket reconnect.  It is JSONB
 --  rather than columns because the shape is a UI/AI concern that will change
 --  more often than the relational core.
-CREATE TABLE chat_sessions (
+CREATE TABLE IF NOT EXISTS chat_sessions (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id         UUID REFERENCES users (id) ON DELETE SET NULL,
     title           TEXT,
@@ -378,15 +385,15 @@ CREATE TABLE chat_sessions (
 );
 
 --  A user's chat history, newest conversation first.
-CREATE INDEX chat_sessions_user_id_idx
+CREATE INDEX IF NOT EXISTS chat_sessions_user_id_idx
     ON chat_sessions (user_id, last_message_at DESC)
     WHERE user_id IS NOT NULL;
 
 --  Housekeeping: find and prune stale anonymous sessions.
-CREATE INDEX chat_sessions_last_message_idx
+CREATE INDEX IF NOT EXISTS chat_sessions_last_message_idx
     ON chat_sessions (last_message_at DESC);
 
-CREATE TRIGGER chat_sessions_set_updated_at
+CREATE OR REPLACE TRIGGER chat_sessions_set_updated_at
     BEFORE UPDATE ON chat_sessions
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
@@ -400,7 +407,7 @@ CREATE TRIGGER chat_sessions_set_updated_at
 --  e.g. the list of available slots the assistant offered, or a confirmed
 --  appointment card -- so a reloaded conversation redraws exactly as it was
 --  instead of degrading to plain text.
-CREATE TABLE chat_messages (
+CREATE TABLE IF NOT EXISTS chat_messages (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     session_id UUID        NOT NULL REFERENCES chat_sessions (id) ON DELETE CASCADE,
     role       chat_role   NOT NULL,
@@ -413,7 +420,7 @@ CREATE TABLE chat_messages (
 
 --  Transcript replay: every read of this table is "all messages for a session,
 --  oldest first".  The composite index serves the filter and the ordering.
-CREATE INDEX chat_messages_session_created_idx
+CREATE INDEX IF NOT EXISTS chat_messages_session_created_idx
     ON chat_messages (session_id, created_at ASC);
 
 -- =============================================================================
@@ -425,7 +432,7 @@ CREATE INDEX chat_messages_session_created_idx
 --
 --  NOTE: prompts and responses are stored, credentials are not.  The service
 --  layer never writes API keys into this table.
-CREATE TABLE ai_interactions (
+CREATE TABLE IF NOT EXISTS ai_interactions (
     id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     session_id     UUID REFERENCES chat_sessions (id) ON DELETE CASCADE,
     user_id        UUID REFERENCES users (id) ON DELETE SET NULL,
@@ -445,8 +452,8 @@ CREATE TABLE ai_interactions (
 );
 
 --  Analytics reads are time-ordered; session drill-down is the other access path.
-CREATE INDEX ai_interactions_created_at_idx ON ai_interactions (created_at DESC);
-CREATE INDEX ai_interactions_session_idx    ON ai_interactions (session_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS ai_interactions_created_at_idx ON ai_interactions (created_at DESC);
+CREATE INDEX IF NOT EXISTS ai_interactions_session_idx    ON ai_interactions (session_id, created_at DESC);
 
 COMMIT;
 

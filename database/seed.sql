@@ -382,11 +382,39 @@ FROM new_session,
         ('assistant', 'Of course. Which day works best for you? We are open Monday to Saturday, 9:00 AM to 5:00 PM.', NULL, INTERVAL '2 hours 2 minutes'),
         ('user',      'Tomorrow afternoon if possible', NULL, INTERVAL '2 hours 1 minute'),
         ('assistant', 'Here are the afternoon slots still free tomorrow. Which one suits you?',
-         '{"type":"slots","date":"tomorrow","slots":["13:00","13:30","14:30","15:30","16:00"]}'::jsonb,
+         -- A real date, not the word "tomorrow": the UI formats this value, and
+         -- an unparseable date used to throw while rendering the transcript.
+         jsonb_build_object(
+             'type', 'slots',
+             'date', to_char(
+                 CASE WHEN EXTRACT(DOW FROM CURRENT_DATE + 1) = 0
+                      THEN CURRENT_DATE + 2 ELSE CURRENT_DATE + 1 END,
+                 'YYYY-MM-DD'),
+             'dayName', trim(to_char(
+                 CASE WHEN EXTRACT(DOW FROM CURRENT_DATE + 1) = 0
+                      THEN CURRENT_DATE + 2 ELSE CURRENT_DATE + 1 END,
+                 'Day')),
+             'slots', jsonb_build_array('13:00', '13:30', '14:30', '15:30', '16:00')
+         ),
          INTERVAL '2 hours'),
         ('user',      '2:30 PM please', NULL, INTERVAL '1 hour 59 minutes'),
         ('assistant', 'Your appointment is confirmed for tomorrow at 2:30 PM for a professional cleaning. You will receive a confirmation email shortly. Please arrive five minutes early. Is there anything else I can help with?',
-         '{"type":"booking_confirmed","time":"14:30","service":"cleaning"}'::jsonb,
+         -- Must match the MessagePayload shape the chat UI renders: an
+         -- `appointment` object, not loose fields. A payload that does not
+         -- match used to throw while rendering the stored transcript.
+         jsonb_build_object(
+             'type', 'booking_confirmed',
+             'appointment', jsonb_build_object(
+                 'id', gen_random_uuid()::text,
+                 'appointmentDate', to_char(
+                     CASE WHEN EXTRACT(DOW FROM CURRENT_DATE + 1) = 0
+                          THEN CURRENT_DATE + 2 ELSE CURRENT_DATE + 1 END,
+                     'YYYY-MM-DD'),
+                 'startTime', '14:30',
+                 'endTime', '15:00',
+                 'reason', 'Professional cleaning'
+             )
+         ),
          INTERVAL '1 hour 58 minutes')
      ) AS msg(role, content, payload, ago);
 

@@ -1,17 +1,22 @@
 /**
- * Creates the database and loads schema.sql + seed.sql.
+ * Database setup.
  *
- *   npm run db:setup           create if missing, then apply schema + seed
- *   npm run db:setup -- --reset  DROP the database first, then recreate it
+ *   npm run db:migrate   schema only — NON-DESTRUCTIVE, safe on every deploy
+ *   npm run db:seed      demo data — development only
+ *   npm run db:setup     migrate + seed (local convenience)
+ *   npm run db:reset     DROP the database, then migrate + seed
  *
  * Works against any reachable PostgreSQL — the one started by `npm run db:start`
- * or a system install — because it only ever talks to DATABASE_URL.
+ * or a managed instance — because it only ever talks to DATABASE_URL, and needs
+ * no `psql` client installed.
  *
- * This is the programmatic equivalent of:
- *   createdb dentist_booking
- *   psql -d dentist_booking -f database/schema.sql
- *   psql -d dentist_booking -f database/seed.sql
- * and exists so the project can be set up without the `psql` client installed.
+ * ## Why these are separate
+ *
+ * `schema.sql` used to begin by dropping every table, which made "apply the
+ * schema" and "erase the database" the same operation. Running it a second time
+ * — or wiring it into a deploy — silently destroyed real data. The schema is now
+ * idempotent, and seeding is a deliberate, separate step that production never
+ * runs.
  */
 
 import fs from 'node:fs';
@@ -29,6 +34,7 @@ import {
   log,
   maintenanceTarget,
   ok,
+  resolveSsl,
   resolveTarget,
   warn,
 } from './db-lib';
@@ -43,6 +49,8 @@ function connectionConfig(target: DbTarget) {
     user: target.user,
     password: target.password,
     database: target.database,
+    // Required when seeding a hosted database from outside its network.
+    ssl: resolveSsl(),
     // Fail quickly rather than hanging when nothing is listening.
     connectionTimeoutMillis: 8000,
   };
@@ -85,7 +93,13 @@ async function databaseExists(target: DbTarget): Promise<boolean> {
 }
 
 async function main(): Promise<void> {
-  const reset = process.argv.includes('--reset');
+  const args = process.argv.slice(2);
+  const reset = args.includes('--reset');
+  // Default (no flags) keeps the old behaviour: schema + seed.
+  const schemaOnly = args.includes('--schema-only');
+  const seedOnly = args.includes('--seed-only');
+  const applySchema = !seedOnly;
+  const applySeed = !schemaOnly;
   const target = resolveTarget();
 
   log(`\n${BOLD}Setting up the database${RESET}`);
@@ -126,8 +140,11 @@ async function main(): Promise<void> {
       ok(`Created database "${target.database}"`);
     }
 
-    await applyFile(target, SCHEMA_FILE, 'database/schema.sql');
-    await applyFile(target, SEED_FILE, 'database/seed.sql');
+    if (applySchema) await applyFile(target, SCHEMA_FILE, 'database/schema.sql');
+    if (applySeed) await applyFile(target, SEED_FILE, 'database/seed.sql');
+    if (!applySeed) {
+      log(`  ${DIM}Seed data skipped — schema only.${RESET}`);
+    }
 
     const counts = await withClient(target, async (client) => {
       const result = await client.query<{ table_name: string; rows: string }>(`
