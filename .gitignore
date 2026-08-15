@@ -1,0 +1,59 @@
+# =============================================================================
+#  Bright Smile Dental — API
+# =============================================================================
+
+# ---- Dependencies -----------------------------------------------------------
+node_modules/
+.pnp/
+.pnp.js
+
+# ---- Environment ------------------------------------------------------------
+#  `.env.example` IS committed and documents every variable the app reads.
+#  `.env` holds real secrets and never is.
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test
+!.env.example
+
+# ---- Build output -----------------------------------------------------------
+dist/
+build/
+*.tsbuildinfo
+
+# ---- Local PostgreSQL -------------------------------------------------------
+#  Data directory created by `npm run db:start`. Real database contents —
+#  never committed. The SQL that defines the schema lives in database/ and IS
+#  committed.
+.pgdata/
+.pgpass.tmp
+*.dump
+
+# ---- Logs -------------------------------------------------------------------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---- Testing ----------------------------------------------------------------
+coverage/
+.nyc_output/
+
+# ---- Editors & OS -----------------------------------------------------------
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ---- Misc -------------------------------------------------------------------
+.cache/
+tmp/
+temp/
