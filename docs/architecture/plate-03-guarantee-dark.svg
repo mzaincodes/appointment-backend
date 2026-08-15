@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1160" height="340" viewBox="0 0 1160 340" role="img"
+           aria-label="Two concurrent requests both pass the application availability check because neither has committed yet. PostgreSQL's exclusion constraint accepts the first insert and rejects the second with SQLSTATE 23P01, which the service turns into a 409 offering alternative times.">
+<style>
+  svg { background: #101A1D; }
+  .box      { fill: #101A1D; stroke: #26383C; stroke-width: 1.25; }
+  .box-soft { fill: #080D0F; stroke: #1A282B; stroke-width: 1; }
+  .box-key  { fill: #0E2C2B; stroke: #1E6E67; stroke-width: 1.5; }
+  .box-warn { fill: #2E2109; stroke: #7A5518; stroke-width: 1.5; }
+  .tier     { fill: none; stroke: #26383C; stroke-width: 1; stroke-dasharray: 3 5; }
+
+  .t       { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; fill: #E7EFEE; font-size: 13.5px; }
+  .t-title { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; fill: #E7EFEE; font-size: 14.5px; font-weight: 700; }
+  .t-sm    { font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace; fill: #7E9694; font-size: 10.5px; letter-spacing: .04em; }
+  .t-tier  { font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace; fill: #7E9694; font-size: 10px; letter-spacing: .18em; }
+  .t-key   { fill: #2DD4BF; }
+  .t-warn  { fill: #F0B45E; }
+
+  .wire       { fill: none; stroke: #A9BEBC; stroke-width: 1.6; opacity: .55; }
+  .wire-key   { fill: none; stroke: #2DD4BF; stroke-width: 2.2; }
+  .wire-warn  { fill: none; stroke: #F0B45E; stroke-width: 2; }
+  .wire-dash  { stroke-dasharray: 7 6; }
+  .wire-block { fill: none; stroke: #F0B45E; stroke-width: 2; stroke-dasharray: 5 5; opacity: .9; }
+
+  .mk      { fill: #A9BEBC; opacity: .7; }
+  .mk-key  { fill: #2DD4BF; }
+  .mk-warn { fill: #F0B45E; }
+
+  /* The motion: dashes travel along each wire in the direction of the flow. */
+  .flow { stroke-dasharray: 5 11; animation: travel 1.25s linear infinite; }
+  @keyframes travel { to { stroke-dashoffset: -32; } }
+
+  .pulse { fill: #2DD4BF; animation: breathe 3.2s ease-in-out infinite; }
+  @keyframes breathe { 0%, 100% { opacity: .3; } 50% { opacity: .95; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .flow  { animation: none; }
+    .pulse { animation: none; opacity: .6; }
+  }
+  .rule-warn { stroke: #7A5518; }
+  .rule-plain { stroke: #26383C; }
+</style>
+        <defs>
+          <marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" class="mk"/>
+          </marker>
+          <marker id="ar3w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" class="mk-warn"/>
+          </marker>
+        </defs>
+        <text class="t-tier" x="48"  y="40">Two patients, same slot, same instant</text>
+        <rect class="box" x="48" y="62" width="204" height="62" rx="2"/>
+        <text class="t" x="66" y="90">Request A</text>
+        <text class="t-sm" x="66" y="110">wants 14:30</text>
+        <rect class="box" x="48" y="196" width="204" height="62" rx="2"/>
+        <text class="t" x="66" y="224">Request B</text>
+        <text class="t-sm" x="66" y="244">wants 14:30</text>
+        <path class="wire flow" marker-end="url(#ar3)" d="M 252 93 L 340 93"/>
+        <path class="wire flow" marker-end="url(#ar3)" d="M 252 227 L 340 227"/>
+        <rect class="box-soft" x="344" y="62" width="228" height="62" rx="2"/>
+        <text class="t-sm" x="362" y="88">availability check</text>
+        <text class="t-sm t-key" x="362" y="108">slot looks free ✓</text>
+        <rect class="box-soft" x="344" y="196" width="228" height="62" rx="2"/>
+        <text class="t-sm" x="362" y="222">availability check</text>
+        <text class="t-sm t-key" x="362" y="242">slot looks free ✓</text>
+        <text class="t-sm" x="344" y="152">Neither has committed yet, so both</text>
+        <text class="t-sm" x="344" y="170">application checks pass. This is the race.</text>
+        <path class="wire flow" marker-end="url(#ar3)" d="M 572 93 C 640 93, 650 140, 716 140"/>
+        <path class="wire flow" marker-end="url(#ar3)" d="M 572 227 C 640 227, 650 180, 716 180"/>
+        <rect class="box-warn" x="720" y="104" width="212" height="112" rx="2"/>
+        <text class="t-title t-warn" x="738" y="132">PostgreSQL</text>
+        <text class="t-sm t-warn" x="738" y="156">EXCLUDE USING gist</text>
+        <text class="t-sm" x="738" y="176">takes predicate locks</text>
+        <text class="t-sm" x="738" y="194">itself — timing cannot</text>
+        <text class="t-sm" x="738" y="206">slip between them</text>
+        <path class="wire-key flow" marker-end="url(#ar3)" d="M 932 132 L 1000 132"/>
+        <path class="wire-warn flow" marker-end="url(#ar3w)" d="M 932 188 L 1000 188"/>
+        <text class="t-sm t-key"  x="1006" y="128">A → 201 booked</text>
+        <text class="t-sm t-warn" x="1006" y="184">B → 23P01</text>
+        <text class="t-sm"        x="1006" y="202">→ 409 + nearest</text>
+        <text class="t-sm"        x="1006" y="216">free times</text>
+        <text class="t-sm t-key" x="48" y="304">Verified: 8 simultaneous requests for one slot → exactly 1 succeeds, 7 rejected.</text>
+      </svg>

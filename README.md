@@ -31,6 +31,12 @@ scripts/             db tooling and the end-to-end suite
 > **Prototype.** Built as a technical assessment. Not a production healthcare
 > system — see [Assumptions and limitations](#assumptions-and-limitations).
 
+📐 **[ARCHITECTURE.md](ARCHITECTURE.md)** — animated diagrams of how the pieces
+fit together: the request path, why the chatbot and the booking form cannot
+drift apart, where double booking is stopped, and what the model may touch.
+A single-file edition with the diagrams embedded is in
+[SUPER_ARCHITECTURE.md](SUPER_ARCHITECTURE.md), for reading outside the repo.
+
 ---
 
 ## Quick start

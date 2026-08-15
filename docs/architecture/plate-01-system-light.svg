@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1160" height="650" viewBox="0 0 1160 650" role="img"
+           aria-label="Browser clients reach an Express API over REST and WebSocket; controllers call services, services call repositories, repositories are the only code that talks to PostgreSQL. The AI service calls Mistral for tool decisions but never the database.">
+<style>
+  svg { background: #FFFFFF; }
+  .box      { fill: #FFFFFF; stroke: #D3DDDB; stroke-width: 1.25; }
+  .box-soft { fill: #F1F4F3; stroke: #E4EBEA; stroke-width: 1; }
+  .box-key  { fill: #E2F1EF; stroke: #9FCFC9; stroke-width: 1.5; }
+  .box-warn { fill: #FBEEDC; stroke: #E5BE8A; stroke-width: 1.5; }
+  .tier     { fill: none; stroke: #D3DDDB; stroke-width: 1; stroke-dasharray: 3 5; }
+
+  .t       { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; fill: #0D1417; font-size: 13.5px; }
+  .t-title { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; fill: #0D1417; font-size: 14.5px; font-weight: 700; }
+  .t-sm    { font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace; fill: #5A6B70; font-size: 10.5px; letter-spacing: .04em; }
+  .t-tier  { font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace; fill: #5A6B70; font-size: 10px; letter-spacing: .18em; }
+  .t-key   { fill: #0F766E; }
+  .t-warn  { fill: #A8560A; }
+
+  .wire       { fill: none; stroke: #3D4F53; stroke-width: 1.6; opacity: .55; }
+  .wire-key   { fill: none; stroke: #0F766E; stroke-width: 2.2; }
+  .wire-warn  { fill: none; stroke: #A8560A; stroke-width: 2; }
+  .wire-dash  { stroke-dasharray: 7 6; }
+  .wire-block { fill: none; stroke: #A8560A; stroke-width: 2; stroke-dasharray: 5 5; opacity: .9; }
+
+  .mk      { fill: #3D4F53; opacity: .7; }
+  .mk-key  { fill: #0F766E; }
+  .mk-warn { fill: #A8560A; }
+
+  /* The motion: dashes travel along each wire in the direction of the flow. */
+  .flow { stroke-dasharray: 5 11; animation: travel 1.25s linear infinite; }
+  @keyframes travel { to { stroke-dashoffset: -32; } }
+
+  .pulse { fill: #0F766E; animation: breathe 3.2s ease-in-out infinite; }
+  @keyframes breathe { 0%, 100% { opacity: .3; } 50% { opacity: .95; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .flow  { animation: none; }
+    .pulse { animation: none; opacity: .6; }
+  }
+  .rule-warn { stroke: #E5BE8A; }
+  .rule-plain { stroke: #D3DDDB; }
+</style>
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" class="mk"/>
+          </marker>
+          <marker id="ar-key" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" class="mk-key"/>
+          </marker>
+        </defs>
+        <text class="t-tier" x="60"  y="52">Browser · Vercel</text>
+        <text class="t-tier" x="392" y="52">API service · Render</text>
+        <text class="t-tier" x="872" y="52">Data &amp; model</text>
+        <rect class="tier" x="48" y="68" width="240" height="420" rx="2"/>
+        <rect class="box-key" x="70" y="120" width="196" height="78" rx="2"/>
+        <text class="t-title" x="88" y="148">Booking UI</text>
+        <text class="t-sm"    x="88" y="168">guest or signed in</text>
+        <text class="t-sm t-key" x="88" y="186">REST · /api/appointments</text>
+        <rect class="box-key" x="70" y="252" width="196" height="78" rx="2"/>
+        <text class="t-title" x="88" y="280">AI Chatbot</text>
+        <text class="t-sm"    x="88" y="300">books by conversation</text>
+        <text class="t-sm t-key" x="88" y="318">WebSocket · chat:message</text>
+        <rect class="box-soft" x="70" y="384" width="196" height="62" rx="2"/>
+        <text class="t"    x="88" y="410">Admin dashboard</text>
+        <text class="t-sm" x="88" y="430">staff only · role guarded</text>
+        <rect class="tier" x="376" y="68" width="404" height="500" rx="2"/>
+        <rect class="box" x="400" y="96" width="356" height="62" rx="2"/>
+        <text class="t-title" x="418" y="122">routes → controllers</text>
+        <text class="t-sm"    x="418" y="142">validate · authenticate · rate limit</text>
+        <rect class="box-key" x="400" y="192" width="356" height="212" rx="2"/>
+        <text class="t-title t-key" x="418" y="220">services — every business rule</text>
+        <rect class="box-soft" x="418" y="236" width="152" height="46" rx="2"/>
+        <text class="t-sm" x="430" y="256">appointment</text>
+        <text class="t-sm" x="430" y="272">Service</text>
+        <rect class="box-soft" x="586" y="236" width="152" height="46" rx="2"/>
+        <text class="t-sm" x="598" y="256">availability</text>
+        <text class="t-sm" x="598" y="272">Service</text>
+        <rect class="box-soft" x="418" y="296" width="152" height="46" rx="2"/>
+        <text class="t-sm" x="430" y="316">auth · chat</text>
+        <text class="t-sm" x="430" y="332">Service</text>
+        <rect class="box-soft" x="586" y="296" width="152" height="46" rx="2"/>
+        <text class="t-sm" x="598" y="316">aiService</text>
+        <text class="t-sm" x="598" y="332">+ tools</text>
+        <text class="t-sm t-key" x="418" y="368">no req · no res · callable from any transport</text>
+        <text class="t-sm t-key" x="418" y="386">this is where both front doors meet</text>
+        <rect class="box" x="400" y="440" width="356" height="62" rx="2"/>
+        <text class="t-title" x="418" y="466">repositories</text>
+        <text class="t-sm"    x="418" y="486">the only code that writes SQL</text>
+        <rect class="tier" x="860" y="68" width="256" height="500" rx="2"/>
+        <rect class="box" x="884" y="96" width="208" height="88" rx="2"/>
+        <text class="t-title" x="902" y="124">Mistral API</text>
+        <text class="t-sm"    x="902" y="146">chooses which tool</text>
+        <text class="t-sm"    x="902" y="162">to call, and with what</text>
+        <rect class="box-warn" x="884" y="326" width="208" height="176" rx="2"/>
+        <text class="t-title t-warn" x="902" y="354">PostgreSQL</text>
+        <text class="t-sm" x="902" y="378">users · appointments</text>
+        <text class="t-sm" x="902" y="394">chat_sessions · messages</text>
+        <text class="t-sm" x="902" y="410">clinic_knowledge</text>
+        <line x1="902" y1="428" x2="1074" y2="428" class="rule-warn" stroke-width="1"/>
+        <text class="t-sm t-warn" x="902" y="450">EXCLUDE constraint</text>
+        <text class="t-sm t-warn" x="902" y="466">rejects any overlap —</text>
+        <text class="t-sm t-warn" x="902" y="482">the final authority</text>
+        <path class="wire-key flow" marker-end="url(#ar-key)"
+              d="M 266 159 C 330 159, 340 121, 396 121"/>
+        <path class="wire-key wire-dash flow" marker-end="url(#ar-key)"
+              d="M 266 291 C 336 291, 344 139, 396 139"/>
+        <path class="wire flow" marker-end="url(#ar)"
+              d="M 266 415 C 330 415, 344 155, 396 155"/>
+        <path class="wire-key flow" marker-end="url(#ar-key)" d="M 578 158 L 578 188"/>
+        <path class="wire-key flow" marker-end="url(#ar-key)" d="M 578 404 L 578 436"/>
+        <path class="wire-warn flow" marker-end="url(#ar)" d="M 756 471 C 820 471, 830 414, 880 414"/>
+        <text class="t-sm" x="770" y="446">SQL</text>
+        <path class="wire wire-dash flow" marker-end="url(#ar)" marker-start="url(#ar)"
+              d="M 738 296 C 800 268, 812 180, 880 156"/>
+        <text class="t-sm" x="762" y="230">tool calls</text>
+        <circle class="pulse" cx="578" cy="172" r="10"/>
+        <line x1="330" y1="600" x2="330" y2="628" class="rule-plain" stroke-width="1"/>
+        <line x1="826" y1="600" x2="826" y2="628" class="rule-plain" stroke-width="1"/>
+        <text class="t-sm" x="60"  y="620">deployed on Vercel</text>
+        <text class="t-sm" x="392" y="620">deployed on Render</text>
+        <text class="t-sm" x="872" y="620">Render Postgres · Mistral</text>
+      </svg>
