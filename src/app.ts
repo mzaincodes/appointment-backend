@@ -7,6 +7,7 @@ import routes from './routes';
 import { apiLimiter } from './middleware/rate-limit';
 import { errorHandler, notFoundHandler } from './middleware/error-handler';
 import { requestLogger } from './middleware/request-logger';
+import { logger } from './utils/logger';
 
 /**
  * Express application.
@@ -51,7 +52,12 @@ export function createApp(): Express {
           callback(null, true);
           return;
         }
-        callback(new Error(`Origin ${origin} is not allowed by CORS.`));
+        // Deny by *omitting* the CORS headers rather than throwing. Throwing
+        // turns a routine policy decision into a 500 — which looks like the API
+        // is broken, buries the real cause, and fills the logs with errors. The
+        // browser still blocks the request; this just makes the reason legible.
+        logger.warn('Blocked by CORS', { origin, allowed: env.allowedOrigins });
+        callback(null, false);
       },
       credentials: true,
     }),
@@ -67,6 +73,21 @@ export function createApp(): Express {
 
   app.get('/health', (_req, res) => {
     res.json({ success: true, data: { status: 'ok', uptime: process.uptime() } });
+  });
+
+  // Platform health probes and anyone opening the service URL in a browser hit
+  // `/`. Without this they get a 404, which reads like a broken deploy in the
+  // logs. Answer with a small banner that says what this service is.
+  app.get('/', (_req, res) => {
+    res.json({
+      success: true,
+      data: {
+        service: 'Bright Smile Dental API',
+        status: 'ok',
+        docs: 'This is the API. The patient site is a separate application.',
+        endpoints: ['/health', '/api/clinic', '/api/appointments/availability?date=YYYY-MM-DD'],
+      },
+    });
   });
 
   app.use('/api', apiLimiter, routes);
