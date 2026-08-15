@@ -1,5 +1,176 @@
 # Bright Smile Dental — API
 
+## Architecture
+
+<svg class="bsd-plate" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1160 650" style="width:100%;height:auto" role="img" aria-label="Browser clients reach an Express API over REST and WebSocket; controllers call services, services call repositories, repositories are the only code that talks to PostgreSQL. The AI service calls Mistral for tool decisions but never the database.">
+<style>
+  .bsd-plate { background: #101A1D; }
+  .bsd-box      { fill: #101A1D; stroke: #26383C; stroke-width: 1.25; }
+  .bsd-box-soft { fill: #080D0F; stroke: #1A282B; stroke-width: 1; }
+  .bsd-box-key  { fill: #0E2C2B; stroke: #1E6E67; stroke-width: 1.5; }
+  .bsd-box-warn { fill: #2E2109; stroke: #7A5518; stroke-width: 1.5; }
+  .bsd-tier     { fill: none; stroke: #26383C; stroke-width: 1; stroke-dasharray: 3 5; }
+  .bsd-t       { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; fill: #E7EFEE; font-size: 13.5px; }
+  .bsd-t-title { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; fill: #E7EFEE; font-size: 14.5px; font-weight: 700; }
+  .bsd-t-sm    { font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace; fill: #7E9694; font-size: 10.5px; letter-spacing: .04em; }
+  .bsd-t-tier  { font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace; fill: #7E9694; font-size: 10px; letter-spacing: .18em; }
+  .bsd-t-key   { fill: #2DD4BF; }
+  .bsd-t-warn  { fill: #F0B45E; }
+  .bsd-wire       { fill: none; stroke: #A9BEBC; stroke-width: 1.6; opacity: .55; }
+  .bsd-wire-key   { fill: none; stroke: #2DD4BF; stroke-width: 2.2; }
+  .bsd-wire-warn  { fill: none; stroke: #F0B45E; stroke-width: 2; }
+  .bsd-wire-dash  { stroke-dasharray: 7 6; }
+  .wire-block { fill: none; stroke: #F0B45E; stroke-width: 2; stroke-dasharray: 5 5; opacity: .9; }
+  .bsd-mk      { fill: #A9BEBC; opacity: .7; }
+  .bsd-mk-key  { fill: #2DD4BF; }
+  .mk-warn { fill: #F0B45E; }
+  /* The motion: dashes travel along each wire in the direction of the flow. */
+  .bsd-flow { stroke-dasharray: 5 11; animation: bsd-travel 1.25s linear infinite; }
+  @keyframes bsd-travel { to { stroke-dashoffset: -32; } }
+  .bsd-pulse { fill: #2DD4BF; animation: bsd-breathe 3.2s ease-in-out infinite; }
+  @keyframes bsd-breathe { 0%, 100% { opacity: .3; } 50% { opacity: .95; } }
+  @media (prefers-reduced-motion: reduce) {
+    .bsd-flow  { animation: none; }
+    .bsd-pulse { animation: none; opacity: .6; }
+  }
+  .bsd-rule-warn { stroke: #7A5518; }
+  .bsd-rule-plain { stroke: #26383C; }
+</style>
+        <defs>
+          <marker id="bsd-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" class="bsd-mk"/>
+          </marker>
+          <marker id="bsd-ar-key" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" class="bsd-mk-key"/>
+          </marker>
+        </defs>
+        <text class="bsd-t-tier" x="60"  y="52">Browser · Vercel</text>
+        <text class="bsd-t-tier" x="392" y="52">API service · Render</text>
+        <text class="bsd-t-tier" x="872" y="52">Data &amp; model</text>
+        <rect class="bsd-tier" x="48" y="68" width="240" height="420" rx="2"/>
+        <rect class="bsd-box-key" x="70" y="120" width="196" height="78" rx="2"/>
+        <text class="bsd-t-title" x="88" y="148">Booking UI</text>
+        <text class="bsd-t-sm"    x="88" y="168">guest or signed in</text>
+        <text class="bsd-t-sm bsd-t-key" x="88" y="186">REST · /api/appointments</text>
+        <rect class="bsd-box-key" x="70" y="252" width="196" height="78" rx="2"/>
+        <text class="bsd-t-title" x="88" y="280">AI Chatbot</text>
+        <text class="bsd-t-sm"    x="88" y="300">books by conversation</text>
+        <text class="bsd-t-sm bsd-t-key" x="88" y="318">WebSocket · chat:message</text>
+        <rect class="bsd-box-soft" x="70" y="384" width="196" height="62" rx="2"/>
+        <text class="bsd-t"    x="88" y="410">Admin dashboard</text>
+        <text class="bsd-t-sm" x="88" y="430">staff only · role guarded</text>
+        <rect class="bsd-tier" x="376" y="68" width="404" height="500" rx="2"/>
+        <rect class="bsd-box" x="400" y="96" width="356" height="62" rx="2"/>
+        <text class="bsd-t-title" x="418" y="122">routes → controllers</text>
+        <text class="bsd-t-sm"    x="418" y="142">validate · authenticate · rate limit</text>
+        <rect class="bsd-box-key" x="400" y="192" width="356" height="212" rx="2"/>
+        <text class="bsd-t-title bsd-t-key" x="418" y="220">services — every business rule</text>
+        <rect class="bsd-box-soft" x="418" y="236" width="152" height="46" rx="2"/>
+        <text class="bsd-t-sm" x="430" y="256">appointment</text>
+        <text class="bsd-t-sm" x="430" y="272">Service</text>
+        <rect class="bsd-box-soft" x="586" y="236" width="152" height="46" rx="2"/>
+        <text class="bsd-t-sm" x="598" y="256">availability</text>
+        <text class="bsd-t-sm" x="598" y="272">Service</text>
+        <rect class="bsd-box-soft" x="418" y="296" width="152" height="46" rx="2"/>
+        <text class="bsd-t-sm" x="430" y="316">auth · chat</text>
+        <text class="bsd-t-sm" x="430" y="332">Service</text>
+        <rect class="bsd-box-soft" x="586" y="296" width="152" height="46" rx="2"/>
+        <text class="bsd-t-sm" x="598" y="316">aiService</text>
+        <text class="bsd-t-sm" x="598" y="332">+ tools</text>
+        <text class="bsd-t-sm bsd-t-key" x="418" y="368">no req · no res · callable from any transport</text>
+        <text class="bsd-t-sm bsd-t-key" x="418" y="386">this is where both front doors meet</text>
+        <rect class="bsd-box" x="400" y="440" width="356" height="62" rx="2"/>
+        <text class="bsd-t-title" x="418" y="466">repositories</text>
+        <text class="bsd-t-sm"    x="418" y="486">the only code that writes SQL</text>
+        <rect class="bsd-tier" x="860" y="68" width="256" height="500" rx="2"/>
+        <rect class="bsd-box" x="884" y="96" width="208" height="88" rx="2"/>
+        <text class="bsd-t-title" x="902" y="124">Mistral API</text>
+        <text class="bsd-t-sm"    x="902" y="146">chooses which tool</text>
+        <text class="bsd-t-sm"    x="902" y="162">to call, and with what</text>
+        <rect class="bsd-box-warn" x="884" y="326" width="208" height="176" rx="2"/>
+        <text class="bsd-t-title bsd-t-warn" x="902" y="354">PostgreSQL</text>
+        <text class="bsd-t-sm" x="902" y="378">users · appointments</text>
+        <text class="bsd-t-sm" x="902" y="394">chat_sessions · messages</text>
+        <text class="bsd-t-sm" x="902" y="410">clinic_knowledge</text>
+        <line x1="902" y1="428" x2="1074" y2="428" class="bsd-rule-warn" stroke-width="1"/>
+        <text class="bsd-t-sm bsd-t-warn" x="902" y="450">EXCLUDE constraint</text>
+        <text class="bsd-t-sm bsd-t-warn" x="902" y="466">rejects any overlap —</text>
+        <text class="bsd-t-sm bsd-t-warn" x="902" y="482">the final authority</text>
+        <path class="bsd-wire-key bsd-flow" marker-end="url(#bsd-ar-key)"
+              d="M 266 159 C 330 159, 340 121, 396 121"/>
+        <path class="bsd-wire-key bsd-wire-dash bsd-flow" marker-end="url(#bsd-ar-key)"
+              d="M 266 291 C 336 291, 344 139, 396 139"/>
+        <path class="bsd-wire bsd-flow" marker-end="url(#bsd-ar)"
+              d="M 266 415 C 330 415, 344 155, 396 155"/>
+        <path class="bsd-wire-key bsd-flow" marker-end="url(#bsd-ar-key)" d="M 578 158 L 578 188"/>
+        <path class="bsd-wire-key bsd-flow" marker-end="url(#bsd-ar-key)" d="M 578 404 L 578 436"/>
+        <path class="bsd-wire-warn bsd-flow" marker-end="url(#bsd-ar)" d="M 756 471 C 820 471, 830 414, 880 414"/>
+        <text class="bsd-t-sm" x="770" y="446">SQL</text>
+        <path class="bsd-wire bsd-wire-dash bsd-flow" marker-end="url(#bsd-ar)" marker-start="url(#bsd-ar)"
+              d="M 738 296 C 800 268, 812 180, 880 156"/>
+        <text class="bsd-t-sm" x="762" y="230">tool calls</text>
+        <circle class="bsd-pulse" cx="578" cy="172" r="10"/>
+        <line x1="330" y1="600" x2="330" y2="628" class="bsd-rule-plain" stroke-width="1"/>
+        <line x1="826" y1="600" x2="826" y2="628" class="bsd-rule-plain" stroke-width="1"/>
+        <text class="bsd-t-sm" x="60"  y="620">deployed on Vercel</text>
+        <text class="bsd-t-sm" x="392" y="620">deployed on Render</text>
+        <text class="bsd-t-sm" x="872" y="620">Render Postgres · Mistral</text>
+      </svg>
+
+<sub>The moving dashes show the direction data actually flows. The animation is
+CSS inside the SVG and respects <code>prefers-reduced-motion</code>.</sub>
+
+**Two front doors, one backend.** A booking form and an AI receptionist both
+create appointments. They meet at the service layer and never diverge after it —
+which is the single idea the rest of this section explains.
+
+### Reading the diagram
+
+Three tiers, left to right: what runs in the browser, what runs in the API
+service, and what the API depends on. **Teal** is a request path, **dashed teal**
+is a persistent or bidirectional connection, and **amber** is the one that
+reaches the database.
+
+| Layer | Owns | Never does |
+| --- | --- | --- |
+| **routes → controllers** | Validation, authentication, rate limiting, response shape | Business decisions |
+| **services** | Every business rule | Touch `req` or `res` |
+| **repositories** | Every line of SQL | Decide anything |
+
+The rule that makes the indirection worth it: *a service must be callable from
+an HTTP request, a websocket event, or an AI tool call without changing.* All
+three happen here, which is why the layer exists at all rather than being
+ceremony.
+
+### Why the chatbot cannot drift from the booking form
+
+The teal wires from **Booking UI** and **AI Chatbot** converge before anything is
+decided. `POST /api/appointments` and the assistant's `create_appointment` tool
+call the same `appointmentService.create()` — the same validation, the same
+availability engine, the same transaction, the same constraint.
+
+There is no second booking path to keep in sync. The test suite books through
+the chat socket, then fetches that appointment over REST and confirms the slot
+has disappeared from public availability.
+
+### What the model is allowed to touch
+
+Follow the dashed wire to **Mistral**: it goes to the *service* layer and stops
+there. The model picks a tool name and arguments — nothing else. It never
+decides whether a slot is free, whose appointment it may read, or what the
+clinic charges. Arguments are parsed with Zod before any service sees them, so
+the worst a confused model can do is call the wrong tool and get a validation
+error back.
+
+### Where the guarantee actually lives
+
+The amber box is the final authority. Availability is checked in the service
+layer, but that check is *advisory* — two concurrent requests can both read the
+same free slot before either writes. The `EXCLUDE` constraint is what makes
+double booking impossible, and it is enforced by PostgreSQL rather than by
+application code. [Details below](#how-double-booking-is-prevented).
+
+
 Express + TypeScript + PostgreSQL API for a dental appointment booking platform,
 with Socket.IO real-time chat and an AI receptionist that books real
 appointments through the same services the REST API uses.
@@ -27,15 +198,6 @@ src/
 database/            schema.sql · seed.sql · design notes
 scripts/             db tooling and the end-to-end suite
 ```
-
-> **Prototype.** Built as a technical assessment. Not a production healthcare
-> system — see [Assumptions and limitations](#assumptions-and-limitations).
-
-📐 **[ARCHITECTURE.md](ARCHITECTURE.md)** — animated diagrams of how the pieces
-fit together: the request path, why the chatbot and the booking form cannot
-drift apart, where double booking is stopped, and what the model may touch.
-A single-file edition with the diagrams embedded is in
-[SUPER_ARCHITECTURE.md](SUPER_ARCHITECTURE.md), for reading outside the repo.
 
 ---
 
@@ -162,27 +324,6 @@ mid-conversation. The API reports which mode is active, and the web client
 labels it. Set a key and the class is never constructed.
 
 ---
-
-## Architecture
-
-```
-        REST ──┐                    ┌── controllers (thin)
-               ├──►  Express  ──────┤
-   WebSocket ──┘                    ├──►  services  (all business rules)
-                                    │
-                                    └──►  repositories  (all SQL)
-                                              │
-                                              ▼
-                                        PostgreSQL
-```
-
-Controllers read the already-validated request, call a service, and shape the
-response. Services own every business rule and never touch `req`/`res`.
-Repositories own every line of SQL.
-
-The rule that makes the indirection worth it: *a service must be callable from
-an HTTP request, a websocket event, or an AI tool call without changing.* All
-three happen here.
 
 ### Booking flow
 
